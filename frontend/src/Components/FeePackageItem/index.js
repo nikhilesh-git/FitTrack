@@ -33,7 +33,7 @@ class FeePackageItem extends Component {
 
     try {
       const jwtToken=Cookies.get('jwt_token')
-      const response = await fetch(`http://localhost:3000/api/admin/packages/${packageInfo.id}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/admin/packages/${packageInfo.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

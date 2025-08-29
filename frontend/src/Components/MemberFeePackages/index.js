@@ -17,7 +17,7 @@ class MemberFeePackages extends Component {
 
   fetchPackages = async () => {
     try {
-      const apiUrl = "http://localhost:3000/api/admin/packages/";
+      const apiUrl =`${process.env.REACT_APP_API_URL}/api/admin/packages/`;
       const jwtToken = Cookies.get("jwt_token");
       const options = {
         headers: {

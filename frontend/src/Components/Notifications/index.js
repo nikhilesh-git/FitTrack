@@ -32,7 +32,7 @@ class Notifications extends Component{
     getNotifications= async ()=>{
         this.setState({isLoading:true});
         const jwtToken=Cookies.get('jwt_token')
-        const apiUrl="http://localhost:3000/api/admin/notifications/";
+        const apiUrl=`${process.env.REACT_APP_API_URL}/api/admin/notifications/`;
         const options={
             headers:{
                 Authorization: `Bearer ${jwtToken}`,

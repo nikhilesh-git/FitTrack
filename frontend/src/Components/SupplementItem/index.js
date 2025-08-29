@@ -69,7 +69,7 @@ class SupplementItem extends Component{
         }
         else{
             const jwtToken=Cookies.get('jwt_token')
-            const apiUrl=`http://localhost:3000/api/admin/supplements/${id}`;
+            const apiUrl=`${process.env.REACT_APP_API_URL}/api/admin/supplements/${id}`;
             const data={
             name:name,
             price:parseFloat(price,10),

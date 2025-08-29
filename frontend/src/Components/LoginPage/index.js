@@ -33,7 +33,7 @@ class LoginPage extends Component {
 
     this.setState({ isLoading: true });
 
-    const endpoint = "http://localhost:3000/api/login/";
+    const endpoint = `${process.env.REACT_APP_API_URL}/api/login/`;
 
     try {
       const response = await fetch(endpoint, {

@@ -29,7 +29,7 @@ class MemberDietDetails extends Component {
       const decoded = jwtDecode(jwtToken);
       const memberId = decoded.id; // 👈 assuming "id" holds member's ID
 
-      const dietRes = await fetch(`http://localhost:3000/api/admin/diet-plans/${memberId}`, {
+      const dietRes = await fetch(`${process.env.REACT_APP_API_URL}/api/admin/diet-plans/${memberId}`, {
         headers: {
           Authorization: `Bearer ${jwtToken}`,
         },

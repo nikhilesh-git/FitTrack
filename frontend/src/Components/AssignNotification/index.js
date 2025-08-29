@@ -37,7 +37,7 @@ class AssignNotification extends Component {
     this.setState({ isSubmitting: true, errorMsg: "" })
 
     const jwtToken = Cookies.get("jwt_token")
-    const apiUrl = "http://localhost:3000/api/admin/notifications/"
+    const apiUrl = `${process.env.REACT_APP_API_URL}/api/admin/notifications/`;
     const notificationDetails = {
       title,
       message,

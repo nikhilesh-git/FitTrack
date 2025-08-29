@@ -233,7 +233,7 @@
       const {name, email,age,phone,gender,packageType} = this.state
       if (name !== '' && email !== '' && age!=='' && phone!=='' && phone.length===10) {
         const jwtToken=Cookies.get('jwt_token')
-        const apiUrl="http://localhost:3000/api/admin/members/";
+        const apiUrl = `${process.env.REACT_APP_API_URL}/api/admin/members/`;
         let packageId;
         if(packageType==='1-month'){
           packageId=5;

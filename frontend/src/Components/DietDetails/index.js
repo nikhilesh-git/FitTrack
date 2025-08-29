@@ -25,7 +25,7 @@ class DietDetails extends Component {
     const jwtToken = Cookies.get('jwt_token')
 
     try {
-      const response = await fetch("http://localhost:3000/api/admin/diet-plans", {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/admin/diet-plans`, {
         headers: {
           Authorization: `Bearer ${jwtToken}`,
         },

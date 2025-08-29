@@ -70,7 +70,7 @@ class SupplementStore extends Component{
     getSupplements= async ()=>{
         this.setState({isLoading:true});
         const jwtToken=Cookies.get('jwt_token')
-        const apiUrl="http://localhost:3000/api/admin/supplements/";
+        const apiUrl=`${process.env.REACT_APP_API_URL}/api/admin/supplements/`;
         const options={
             headers:{
                 Authorization: `Bearer ${jwtToken}`,
@@ -126,7 +126,7 @@ class SupplementStore extends Component{
     }
 
     const jwtToken = Cookies.get('jwt_token')
-    const apiUrl = "http://localhost:3000/api/admin/supplements/";
+    const apiUrl = `${process.env.REACT_APP_API_URL}/api/admin/supplements/`;
     const data = {
         name,
         price: parseFloat(price),

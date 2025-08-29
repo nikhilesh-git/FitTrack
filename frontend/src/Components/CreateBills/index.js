@@ -182,7 +182,7 @@ class CreateBills extends Component{
     if(email!==''){
       this.setState({status:apiStatusConstants.inProgress})
       const jwtToken=Cookies.get('jwt_token');
-      const apiUrl=`http://localhost:3000/api/admin/members/${email}`;
+      const apiUrl = `${process.env.REACT_APP_API_URL}/api/admin/members/${email}`;
       const options={
         headers:{
           Authorization:`Bearer ${jwtToken}`

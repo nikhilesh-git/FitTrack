@@ -21,7 +21,7 @@ class MemberBills extends Component{
         this.setState({isLoading:true});
         const jwtToken=Cookies.get('jwt_token');
         const memberId=jwtDecode(jwtToken).id;
-        const apiUrl=`http://localhost:3000/api/admin/bills/member/${memberId}`;
+        const apiUrl=`${process.env.REACT_APP_API_URL}/api/admin/bills/member/${memberId}`;
         const options={
             headers:{
                 Authorization: `Bearer ${jwtToken}`,
