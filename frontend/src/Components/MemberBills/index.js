@@ -1,7 +1,7 @@
 import BillItem from "../BillItem"
 import { ClipLoader } from 'react-spinners';
 import { Component } from "react";
-import {jwtDecode} from "jwt-decode";
+import jwtDecode from "jwt-decode";
 import Cookies from 'js-cookie'
 import "./index.css"
 

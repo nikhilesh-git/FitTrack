@@ -1,6 +1,6 @@
 import React, { Component } from "react";
 import Cookies from 'js-cookie';
-import {jwtDecode} from "jwt-decode";
+import jwtDecode from 'jwt-decode';
 import { Navigate } from "react-router-dom";
 import "./index.css";
 

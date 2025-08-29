@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Cookies from "js-cookie";
-import { jwtDecode } from "jwt-decode";
+import  jwtDecode  from 'jwt-decode';
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import Dashboard from "./Components/Dashboard";

@@ -1,6 +1,6 @@
 import { Component } from "react";
 import Cookies from "js-cookie";
-import { jwtDecode } from "jwt-decode";
+import  jwtDecode  from "jwt-decode";
 import Header from "../Header";
 import MemberSidebar from "../MemberSidebar";
 import "./index.css";
