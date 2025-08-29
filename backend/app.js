@@ -1,553 +1,314 @@
+require('dotenv').config();
 const express = require("express");
 const cors = require('cors');
-const path=require('path');
-const bcrypt=require('bcrypt')  
+const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const supabase = require('./supabaseClient'); // supabase client we created earlier
+
 const app = express();
 app.use(cors());
-app.use(express.json())
-const {open}=require('sqlite');
-const sqlite3=require('sqlite3');
-const { error } = require("console");
-const dbPath=path.join(__dirname,'gymManagementSystem.db');
+app.use(express.json());
 
+// JWT Authentication middleware
+const authenticateToken = async (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const jwtToken = authHeader && authHeader.split(' ')[1];
+  if (!jwtToken) return res.status(401).send("Invalid Access Token");
 
-let db=null;
+  jwt.verify(jwtToken, 'MY_SECRET_TOKEN', (error, payload) => {
+    if (error) return res.status(401).send("Invalid Access Token");
+    req.email = payload.email;
+    req.role = payload.role;
+    next();
+  });
+};
 
-const initializeDbAndServer= async ()=>{
-  try{
-    db=await  open({
-      filename:dbPath,
-      driver:sqlite3.Database
-    });
-    app.listen(3000,()=>{
-      console.log("Server Running at http://localhost:3000/");
-    })
-  }
-  catch(e){
-    console.log(`DB Error: ${e.message}`);
-    process.exit(1);
-  }
-}
+// ------------------- MEMBERS ------------------- //
 
-initializeDbAndServer();
-
-
-const authenticateToken=(request,response,next)=>{
-  let jwtToken;
-  const authHeader=request.headers['authorization'];
-  if(authHeader!==undefined){
-    jwtToken= authHeader.split(' ')[1];
-  }
-
-  if(jwtToken===undefined){
-    response.status(401);
-    response.send("Invalid Access Token");
-  }
-  else{
-    jwt.verify(jwtToken,'MY_SECRET_TOKEN',async(error,payload)=>{
-      if(error){
-        response.status(401);
-        response.send('Invalid Access Token');
-      }
-      else{
-        request.email=payload.email;
-        next();
-      }
-    })
-  }
-}
-
-//get members api
-app.get("/api/admin/members/",authenticateToken, async (request,response)=>{
-  const getMembersQuery=`
-  select * from members;
-  `;
-  const membersArray= await db.all(getMembersQuery);
-  response.send(membersArray);
-})
-
-//get member api
-app.get("/api/admin/members/:email/",authenticateToken, async (request,response)=>{
-  const {email}=request.params;
-
-  const getMembersQuery=`
-  select * from members
-  where email='${email}';
-  `;
-  const member= await db.get(getMembersQuery);
-  if (member) {
-    response.status(200).json(member);
-  } else {
-    response.status(404).json({ error: "Member not found" });
-  }
-})
-
-//add member api 
-app.post("/api/admin/members/",authenticateToken, async (request, response) => {
-  const newMember=request.body;
-  let {
-    name,email,phone,gender,age,joinDate,packageId,active
-  }=newMember;
-
-  if(joinDate===undefined){
-    joinDate = new Date().toISOString().split("T")[0];
-  }
-  const postMemberQuery=`
-  INSERT INTO 
-   members(name,email,phone,gender,age,join_date,package_id,active)
-   VALUES('${name}','${email}','${phone}','${gender}',${age},'${joinDate}',${packageId},${active});
-  `;
-  const dbResponse= await db.run(postMemberQuery);
-  const memberId=dbResponse.lastID;
-  response.send(`Member Successfully added with MemberId: ${memberId}`);
+// Get all members
+app.get("/api/admin/members", authenticateToken, async (req, res) => {
+  const { data, error } = await supabase.from('members').select('*');
+  if (error) return res.status(500).json({ error: error.message });
+  res.send(data);
 });
 
-//update member api
-app.put("/api/admin/members/:emailId/",authenticateToken, async (request,response)=>{
-  const {emailId}=request.params;
-  const updatedMemberDetails=request.body;
-  const {
-    name,email,phone,gender,age,packageId,active
-  }=updatedMemberDetails;
+// Get single member by email
+app.get("/api/admin/members/:email", authenticateToken, async (req, res) => {
+  const { email } = req.params;
+  const { data, error } = await supabase.from('members').select('*').eq('email', email).single();
+  if (error) return res.status(404).json({ error: "Member not found" });
+  res.send(data);
+});
 
-  const updateMemberQuery=`
-  update members set 
-  name='${name}',
-  email='${email}',
-  phone='${phone}',
-  gender='${gender}',
-  age=${age},
-  package_id=${packageId},
-  active=${active}
-  where email='${emailId}';
-  `;
-  await db.run(updateMemberQuery);
-  response.send("Details Updated");
-})
+// Add member
+app.post("/api/admin/members", authenticateToken, async (req, res) => {
+  const { name, email, phone, gender, age, joinDate, packageId, active } = req.body;
+  const memberData = { name, email, phone, gender, age, join_date: joinDate || new Date().toISOString().split('T')[0], package_id: packageId, active };
+  
+  const { data, error } = await supabase.from('members').insert([memberData]);
+  if (error) return res.status(500).json({ error: error.message });
+  res.send({ message: "Member added successfully", member: data[0] });
+});
 
-//delete member api
-app.delete("/api/admin/members/:emailId/",authenticateToken, async (request,response)=>{
-  const {emailId}=request.params
-  const deleteMemberQuery=`
-  delete from members where email='${emailId}';
-  `;
-  await db.run(deleteMemberQuery);
-  response.send("Member Deleted Successfully");
-})
+// Update member
+app.put("/api/admin/members/:emailId", authenticateToken, async (req, res) => {
+  const { emailId } = req.params;
+  const { name, email, phone, gender, age, packageId, active } = req.body;
 
-//post bill api,
-app.post("/api/admin/bills/",authenticateToken,async (request,response)=>{
-  const newBill=request.body;
-  const {
-    memberId,amountPaid,method,name
-  }=newBill;
-  const postBillQuery=`
-  insert into bills
-  (member_id,amount_paid,method,name)
-  values (${memberId},${amountPaid},'${method}','${name}');
-  `;
-  const dbResponse=await db.run(postBillQuery);
-  const billId=dbResponse.lastID;
-  response.send(`Bill Successfully added with bill id: ${billId}`)
-})
+  const { data, error } = await supabase.from('members')
+    .update({ name, email, phone, gender, age, package_id: packageId, active })
+    .eq('email', emailId);
 
-//get bills api
-app.get("/api/admin/bills/",authenticateToken, async (request,response)=>{
-  const getBillsQuery=`
-  select * from bills;
-  `;
-  const billsArray=await db.all(getBillsQuery);
-  response.send(billsArray);
-})
+  if (error) return res.status(500).json({ error: error.message });
+  res.send({ message: "Member updated", member: data[0] });
+});
 
-//get bills of a member api
-app.get("/api/admin/bills/member/:memberId/",authenticateToken, async (request,response)=>{
-  const {memberId}=request.params;
+// Delete member
+app.delete("/api/admin/members/:emailId", authenticateToken, async (req, res) => {
+  const { emailId } = req.params;
+  const { error } = await supabase.from('members').delete().eq('email', emailId);
+  if (error) return res.status(500).json({ error: error.message });
+  res.send({ message: "Member deleted" });
+});
 
-  const getBillsOfMemberQuery=`
-  select * from bills 
-  where member_id='${memberId}'
-   order by payment_date desc`;
-  const billsArray= await db.all(getBillsOfMemberQuery);
-  response.send(billsArray); 
-}) 
+// ------------------- PACKAGES ------------------- //
 
-//get specific bill
-app.get("/api/admin/bills/:billId/",authenticateToken, async (request,response )=>{
-  const {billId}=request.params;
-  const getBillQuery=`
-  select * from bills
-  where id=${billId};
-  `;
-  const bill= await db.get(getBillQuery);
-  response.send(bill);
-})
+// Add package
+app.post("/api/admin/packages", authenticateToken, async (req, res) => {
+  const { name, durationDays, amount, description } = req.body;
+  const { data, error } = await supabase.from('fee_packages').insert([{ name, duration_days: durationDays, amount, description }]);
+  if (error) return res.status(500).json({ error: error.message });
+  res.send({ message: "Package created", package: data[0] });
+});
 
-//add fee package
+// Get all packages
+app.get("/api/admin/packages", authenticateToken, async (req, res) => {
+  const { data, error } = await supabase.from('fee_packages').select('*').order('amount', { ascending: true });
+  if (error) return res.status(500).json({ error: error.message });
+  res.send(data);
+});
 
-app.post("/api/admin/packages/",authenticateToken, async (request,response)=>{
-  const {
-    name,durationDays,amount,description
-  }=request.body;
+// Get package by id
+app.get("/api/admin/packages/:packageId", authenticateToken, async (req, res) => {
+  const { packageId } = req.params;
+  const { data, error } = await supabase.from('fee_packages').select('*').eq('id', packageId).single();
+  if (error) return res.status(404).json({ error: "Package not found" });
+  res.send(data);
+});
 
-    const postFeePackageQuery=`
-    insert into fee_packages
-     (name,duration_days,amount,description)
-    values ('${name}',${durationDays},${amount},'${description}');
-    `; 
+// Update package
+app.put("/api/admin/packages/:packageId", authenticateToken, async (req, res) => {
+  const { packageId } = req.params;
+  const { name, durationDays, amount, description } = req.body;
+  const { data, error } = await supabase.from('fee_packages')
+    .update({ name, duration_days: durationDays, amount, description })
+    .eq('id', packageId);
+  if (error) return res.status(500).json({ error: error.message });
+  res.send({ message: "Package updated", package: data[0] });
+});
 
-  const dbResponse=await db.run(postFeePackageQuery);
+// Delete package
+app.delete("/api/admin/packages/:packageId", authenticateToken, async (req, res) => {
+  const { packageId } = req.params;
+  const { error } = await supabase.from('fee_packages').delete().eq('id', packageId);
+  if (error) return res.status(500).json({ error: error.message });
+  res.send({ message: "Package deleted" });
+});
 
-  response.send(`Fee Package Created with packageId: ${dbResponse.lastID}`);
-} )
+// ------------------- BILLS ------------------- //
 
-//get all fee packages
+// Add bill
+app.post("/api/admin/bills", authenticateToken, async (req, res) => {
+  const { memberId, amountPaid, method, name } = req.body;
+  const { data, error } = await supabase.from('bills').insert([{ member_id: memberId, amount_paid: amountPaid, method, name }]);
+  if (error) return res.status(500).json({ error: error.message });
+  res.send({ message: "Bill added", bill: data[0] });
+});
 
-app.get("/api/admin/packages/",authenticateToken, async (request,response )=>{
-  const getFeePackagesQuery=`
-  select * from fee_packages
-  order by amount asc;
-  ` ;
-  const feePackagesArray=await db.all(getFeePackagesQuery);
-  response.send(feePackagesArray);
-})
+// Get all bills
+app.get("/api/admin/bills", authenticateToken, async (req, res) => {
+  const { data, error } = await supabase.from('bills').select('*');
+  if (error) return res.status(500).json({ error: error.message });
+  res.send(data);
+});
 
-//get fee package
-app.get("/api/admin/packages/:packageId/",authenticateToken, async (request,response )=>{
-  const {packageId}=request.params;
-  const getFeePackagesQuery=`
-  select * from fee_packages
-  where id=${packageId};
-  ` ;
-  const feePackage=await db.get(getFeePackagesQuery);
-  response.send(feePackage);
-})
+// Get bills of a member
+app.get("/api/admin/bills/member/:memberId", authenticateToken, async (req, res) => {
+  const { memberId } = req.params;
+  const { data, error } = await supabase.from('bills').select('*').eq('member_id', memberId).order('payment_date', { ascending: false });
+  if (error) return res.status(500).json({ error: error.message });
+  res.send(data);
+});
 
-//update fee package
+// Get specific bill
+app.get("/api/admin/bills/:billId", authenticateToken, async (req, res) => {
+  const { billId } = req.params;
+  const { data, error } = await supabase.from('bills').select('*').eq('id', billId).single();
+  if (error) return res.status(404).json({ error: "Bill not found" });
+  res.send(data);
+});
 
-app.put("/api/admin/packages/:packageId/",authenticateToken, async (request,response)=>{
-  const {packageId}=request.params;
-  const {
-    name,durationDays,amount,description
-  }=request.body;
+// ------------------- NOTIFICATIONS ------------------- //
 
-    const postFeePackageQuery=`
-    update fee_packages
-    set 
-    name='${name}',
-    duration_days=${durationDays},
-    amount=${amount},
-    description='${description}'
-    where id=${packageId};
-    `; 
+app.post("/api/admin/notifications", authenticateToken, async (req, res) => {
+  const { title, message, targetType } = req.body;
+  const { data, error } = await supabase.from('notifications').insert([{ title, message, target_type: targetType }]);
+  if (error) return res.status(500).json({ error: error.message });
+  res.send({ message: "Notification created", notification: data[0] });
+});
 
-  await db.run(postFeePackageQuery);
-  response.json({ message: "Fee Package Details Successfully Updated." });
-})
+app.get("/api/admin/notifications", authenticateToken, async (req, res) => {
+  const { data, error } = await supabase.from('notifications').select('*').order('created_at', { ascending: false });
+  if (error) return res.status(500).json({ error: error.message });
+  res.send(data);
+});
 
+app.get("/api/admin/notifications/:notificationId", authenticateToken, async (req, res) => {
+  const { notificationId } = req.params;
+  const { data, error } = await supabase.from('notifications').select('*').eq('id', notificationId).single();
+  if (error) return res.status(404).json({ error: "Notification not found" });
+  res.send(data);
+});
 
-//delete package api
-app.delete("/api/admin/packages/:packageId/",authenticateToken, async (request,response)=>{
-  const {packageId}=request.params;
-  const deletePackageQuery=`
-  delete from fee_packages
-  where id=${packageId};
-  `;
-  await db.run(deletePackageQuery);
-  response.json({ message: "Fee Package Details Successfully Updated." });
+app.delete("/api/admin/notifications/:notificationId", authenticateToken, async (req, res) => {
+  const { notificationId } = req.params;
+  const { error } = await supabase.from('notifications').delete().eq('id', notificationId);
+  if (error) return res.status(500).json({ error: error.message });
+  res.send({ message: "Notification deleted" });
+});
 
+// ------------------- SUPPLEMENTS ------------------- //
 
-})
+app.post("/api/admin/supplements", authenticateToken, async (req, res) => {
+  const { name, price, description, stockQuantity, url } = req.body;
+  const { data, error } = await supabase.from('supplements').insert([{ name, price, description, stock_quantity: stockQuantity, url }]);
+  if (error) return res.status(500).json({ error: error.message });
+  res.send({ message: "Supplement added", supplement: data[0] });
+});
 
-//post notification api
-app.post("/api/admin/notifications/",authenticateToken,async (request,response)=>{
-  const {
-    title,message,targetType
-  }=request.body;
-  const postNotificationQuery=`
-  insert into notifications
-  (title,message,target_type)
-  values (?,?,?);
-  `;
-  const dbResponse=await db.run(postNotificationQuery,[title,message,targetType]);
-  response.send(`Notification Created with NotificationId: ${dbResponse.lastID}`);
-})
+app.get("/api/admin/supplements", authenticateToken, async (req, res) => {
+  const { data, error } = await supabase.from('supplements').select('*');
+  if (error) return res.status(500).json({ error: error.message });
+  res.send(data);
+});
 
+app.get("/api/admin/supplements/:supplementId", authenticateToken, async (req, res) => {
+  const { supplementId } = req.params;
+  const { data, error } = await supabase.from('supplements').select('*').eq('id', supplementId).single();
+  if (error) return res.status(404).json({ error: "Supplement not found" });
+  res.send(data);
+});
 
-//get notifications api
-app.get("/api/admin/notifications/",authenticateToken,async (request,response)=>{
-  const getNotificationsQuery=`
-  select * from notifications
-  order by created_at DESC ;
-  `;
-  const notificationsArray=await db.all(getNotificationsQuery);
-  response.send(notificationsArray);
-})
+app.put("/api/admin/supplements/:supplementId", authenticateToken, async (req, res) => {
+  const { supplementId } = req.params;
+  const { name, price, description, stockQuantity, url } = req.body;
+  const { data, error } = await supabase.from('supplements').update({ name, price, description, stock_quantity: stockQuantity, url }).eq('id', supplementId);
+  if (error) return res.status(500).json({ error: error.message });
+  res.send({ message: "Supplement updated", supplement: data[0] });
+});
 
-//get notification api
-app.get("/api/admin/notifications/:notificationId/",authenticateToken,async (request,response)=>{
-  const {notificationId}=request.params;
-  const getNotificationsQuery=`
-  select * from notifications
-  where id=${notificationId};
-  `;
-  const notification=await db.get(getNotificationsQuery);
-  response.send(notification);
-})
+app.delete("/api/admin/supplements/:supplementId", authenticateToken, async (req, res) => {
+  const { supplementId } = req.params;
+  const { error } = await supabase.from('supplements').delete().eq('id', supplementId);
+  if (error) return res.status(500).json({ error: error.message });
+  res.send({ message: "Supplement deleted" });
+});
 
-//delete notification api
-app.delete("/api/admin/notifications/:notificationId/",authenticateToken, async (request,response)=>{
-  const {notificationId}=request.params;
-  const deleteNotificationQuery=`
-  delete from notifications
-  where id=${notificationId};
-  `;
-  await db.run(deleteNotificationQuery);
-  response.send("Notification Successfully Deleted.");  
-})
+// ------------------- DIET PLANS ------------------- //
 
-//post suppliment api
-app.post("/api/admin/supplements/",authenticateToken, async (request,response)=>{
-  const {
-    name,price,description,stockQuantity,url
-  }=request.body;
-  const postSupplimentQuery=`
-  insert into supplements
-  (name,price,description,stock_quantity,url)
-  values ('${name}',${price},'${description}',${stockQuantity},'${url}')
-  `;
-  const dbResponse=await db.run(postSupplimentQuery);
-  response.send(`Supplement created with id:${dbResponse.lastID}`)
-})
+app.get("/api/admin/diet-plans", authenticateToken, async (req, res) => {
+  const { data, error } = await supabase
+    .from('diet_plans')
+    .select(`
+      id,
+      goal,
+      diet_chart,
+      created_at,
+      members (email),
+      admins!diet_plans_assigned_by_fkey (email)
+    `);
+  if (error) return res.status(500).json({ error: error.message });
+  res.send(data);
+});
 
-//get supplements api
-app.get("/api/admin/supplements/",authenticateToken,async (request,response)=>{
-  const getSupplementsQuery=`
-  select * from supplements;
-  `
-  const supplementsArray= await db.all(getSupplementsQuery);
-  response.send(supplementsArray);
-})
-
-//get supplement api
-app.get("/api/admin/supplements/:supplementId/",authenticateToken,async (request,response)=>{
-  const {supplementId}=request.params;
-
-  const getSupplementsQuery=`
-  select * from supplements where id=${supplementId};
-  `
-  const supplement= await db.get(getSupplementsQuery);
-  response.send(supplement);
-})
-
-//update supplement api
-app.put("/api/admin/supplements/:supplementId/",authenticateToken, async (request,response)=>{
-  const {supplementId}=request.params;
-  const {
-    name,price,description,stockQuantity,url
-  }=request.body; 
-  const updateSupplementQuery=`
-  update supplements
-  set 
-  name='${name}',
-  price=${price},
-  description='${description}',
-  stock_quantity=${stockQuantity},
-  url='${url}'
-  where id=${supplementId};
-
-  ` 
-  await db.run(updateSupplementQuery);
-  response.send("Supplement Successfully updated.");
-})
-
-//delete supplement api
-app.delete("/api/admin/supplements/:supplementId/",authenticateToken, async (request,response)=>{
-  const {supplementId}=request.params;
-  const deleteSupplementQuery=`
-  delete from supplements
-  where id=${supplementId};
-  `;
-  await db.run(deleteSupplementQuery);
-  response.send("Supplement Deleted.");
-})
-
-//admin login api
-app.post("/api/login/",async (request,response)=>{
-  const {email,password,role}=request.body;
-  const selectQuery=(role==="admin")?(
-    `select * from admins where email='${email}';`
-  ) :(
-    `select * from members where email='${email}';`
-  )
- 
-  const dbResponse=await db.get(selectQuery);
-  if(dbResponse===undefined){
-    response.status(400).json({error_msg:"Invalid email."});
-  }
-  else{
-     if(dbResponse.password===null){
-      response.status(400).json({error_msg:"Password not set for this user."});
-    }
-    else{
-      const isPasswordMatched= await bcrypt.compare(password,dbResponse.password)
-      if(isPasswordMatched===true){
-        const payload={
-          email:email,
-          role:role,
-          id:dbResponse.id
-        }
-        const  jwtToken=jwt.sign(payload,"MY_SECRET_TOKEN");
-        response.status(200).json({ jwt_token: jwtToken });
-      }
-      else{
-        response.status(400).json({error_msg:"Invalid Password."})
-      }
-    } 
-  }
-})
-
-
-//reset password api
-app.put("/api/reset-password/", async (request,response)=>{
-  const {email,password,role}=request.body;
-  let selectQuery;
-  if(role==='admin'){
-    selectQuery=`select * from admins where email='${email}';`;
-  }
-  else{
-    selectQuery=`select * from members where email='${email}';`
-  }
-  const dbResponse=await db.get(selectQuery);
-  if(dbResponse===undefined){
-    response.status(400);
-    response.send("Invalid email.");
-  } 
-  else{
-    const hashedPassword= await bcrypt.hash(password,10);
-
-    const updatePasswordQuery= (role==='admin')?(
-    `
-    update admins 
-    set 
-    password='${hashedPassword}'
-    where email='${email}';
-    `
-    ):(
-      `
-    update members 
-    set 
-    password='${hashedPassword}'
-    where email='${email}';
-    `
-    )
-    await db.run(updatePasswordQuery);
-    response.send("Password updated successfully");
-  }
-
-})
-
-//get profile api
-app.get("/api/admin/profile", authenticateToken,async(request,response)=>{
-  let {email}=request;
-  const getAdminDetailsQuery=`
-  select * from admins where email='${email}'
-  `;
-  const adminDetails=await db.get(getAdminDetailsQuery);
-  response.send(adminDetails);  
-})
-
-// Get all diet plans
-app.get("/api/admin/diet-plans", authenticateToken, async (request, response) => {
-  try {
-    const query = `
-      SELECT 
-        diet_plans.id, 
-        members.email AS member_email, 
-        diet_plans.goal, 
-        diet_plans.diet_chart, 
-        admins.email AS admin_email, 
-        diet_plans.created_at
-      FROM diet_plans
-      JOIN members ON diet_plans.member_id = members.id
-      LEFT JOIN admins ON diet_plans.assigned_by = admins.id
-    `;
-    const result = await db.all(query);
-    response.send(result);
-  } catch (e) {
-    console.error("Error fetching diet plans", e.message);
-    response.status(500).send({ error: "Failed to fetch diet plans" });
-  }
+app.get("/api/admin/diet-plans/:memberId", authenticateToken, async (req, res) => {
+  const { memberId } = req.params;
+  const { data, error } = await supabase.from('diet_plans').select('*').eq('member_id', memberId).single();
+  if (error) return res.status(404).json({ error: "Diet plan not found" });
+  res.send(data);
 });
 
 
-//get diet plan
-app.get("/api/admin/diet-plans/:memberId", authenticateToken, async (request, response) => {
-  const { memberId } = request.params;
-  const getPlanQuery = `
-    SELECT * FROM diet_plans WHERE member_id = ${memberId};
-  `;
-  const plan = await db.get(getPlanQuery);
-  response.send(plan);
+app.post("/api/admin/diet-plans", authenticateToken, async (req, res) => {
+  const { member_email, goal, diet_chart } = req.body;
+
+  const { data: member, error: memberError } = await supabase.from('members').select('id').eq('email', member_email).single();
+  if (memberError) return res.status(400).json({ error: "Member not found" });
+
+  const { data: admin, error: adminError } = await supabase.from('admins').select('id').eq('email', req.email).single();
+  if (adminError) return res.status(400).json({ error: "Admin not found" });
+
+  const { data, error } = await supabase.from('diet_plans').insert([{ member_id: member.id, goal, diet_chart, assigned_by: admin.id }]);
+  if (error) return res.status(500).json({ error: error.message });
+  res.send({ message: "Diet plan added", diet_plan: data[0] });
 });
 
-//add diet plan
-app.post("/api/admin/diet-plans", authenticateToken, async (request, response) => {
-  const { member_email, goal, diet_chart } = request.body;
-
-  const memberQuery = `SELECT id FROM members WHERE email = ?`;
-  const member = await db.get(memberQuery, [member_email]);
-
-  if (!member) {
-    return response.status(400).send({ error: "Member not found" });
-  }
-
-  const adminQuery = `SELECT id FROM admins WHERE email = ?`;
-  const admin = await db.get(adminQuery, [request.email]);
-
-  if (!admin) {
-    return response.status(400).send({ error: "Admin not found" });
-  }
-
-  const insertQuery = `
-    INSERT INTO diet_plans (member_id, goal, diet_chart, assigned_by)
-    VALUES (?, ?, ?, ?);
-  `;
-
-  await db.run(insertQuery, [member.id, goal, diet_chart, admin.id]);
-  response.send({ message: "Diet plan added successfully" });
+app.put("/api/admin/diet-plans/:id", authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { member_id, goal, diet_chart, assigned_by } = req.body;
+  const { data, error } = await supabase.from('diet_plans').update({ member_id, goal, diet_chart, assigned_by }).eq('id', id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.send({ message: "Diet plan updated", diet_plan: data[0] });
 });
 
-
-
-//update diet plan
-app.put("/api/admin/diet-plans/:id", authenticateToken, async (request, response) => {
-  const { id } = request.params;
-  const { member_id, goal, diet_chart, assigned_by } = request.body;
-
-  const updateQuery = `
-    UPDATE diet_plans
-    SET 
-      member_id = ${member_id},
-      goal = '${goal}',
-      diet_chart = '${diet_chart}',
-      assigned_by = ${assigned_by}
-    WHERE id = ${id};
-  `;
-
-  await db.run(updateQuery);
-  response.send({ message: "Diet plan updated successfully" });
+app.delete("/api/admin/diet-plans/:id", authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { error } = await supabase.from('diet_plans').delete().eq('id', id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.send({ message: "Diet plan deleted" });
 });
 
-//delete diet plan
-app.delete("/api/admin/diet-plans/:id", authenticateToken, async (request, response) => {
-  const { id } = request.params;
-  const deleteQuery = `
-    DELETE FROM diet_plans WHERE id = ${id};
-  `;
-  await db.run(deleteQuery);
-  response.send({ message: "Diet plan deleted successfully" });
+// ------------------- AUTH ------------------- //
+
+// Login
+app.post("/api/login", async (req, res) => {
+  const { email, password, role } = req.body;
+  const table = role === "admin" ? "admins" : "members";
+
+  const { data: user, error } = await supabase.from(table).select('*').eq('email', email).single();
+  if (error || !user) return res.status(400).json({ error_msg: "Invalid email." });
+
+  if (!user.password) return res.status(400).json({ error_msg: "Password not set." });
+
+  const match = await bcrypt.compare(password, user.password);
+  if (!match) return res.status(400).json({ error_msg: "Invalid password." });
+
+  const token = jwt.sign({ email, role, id: user.id }, "MY_SECRET_TOKEN");
+  res.status(200).json({ jwt_token: token });
 });
 
+// Reset password
+app.put("/api/reset-password", async (req, res) => {
+  const { email, password, role } = req.body;
+  const table = role === 'admin' ? 'admins' : 'members';
 
+  const { data: user, error } = await supabase.from(table).select('*').eq('email', email).single();
+  if (error || !user) return res.status(400).send("Invalid email");
+
+  const hashed = await bcrypt.hash(password, 10);
+  const { error: updateError } = await supabase.from(table).update({ password: hashed }).eq('email', email);
+  if (updateError) return res.status(500).json({ error: updateError.message });
+
+  res.send("Password updated successfully");
+});
+
+// Get admin profile
+app.get("/api/admin/profile", authenticateToken, async (req, res) => {
+  const { data, error } = await supabase.from('admins').select('*').eq('email', req.email).single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.send(data);
+});
+
+// ------------------- SERVER ------------------- //
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));

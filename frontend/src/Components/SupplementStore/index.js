@@ -267,18 +267,18 @@ class SupplementStore extends Component{
                             addSupplementState?null:<button type="button" className="add-supplement-button" onClick={this.addSupplement}>Add Supplement</button>
                         }
                     </div>
-                    
                     <div className="supplements-container">
-                        {
-                            !addSupplementState?(
-                                supplementList.map((supplementDetails)=>(
-                                    <SupplementItem key={supplementDetails.id} supplementDetails={supplementDetails} getSupplements={this.getSupplements}/>
-                                ))
-                            ):(
-                                this.renderAddSupplementForm()
-                            )
-                            
-                        }
+                        <div className="supplements-items-container">
+                            {
+                                !addSupplementState?(
+                                    supplementList.map((supplementDetails)=>(
+                                        <SupplementItem key={supplementDetails.id} supplementDetails={supplementDetails} getSupplements={this.getSupplements}/>
+                                    ))
+                                ):(
+                                    this.renderAddSupplementForm()
+                                )
+                            }
+                        </div>
                     </div>
                 </div>
             </div>

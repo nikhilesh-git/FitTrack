@@ -1,6 +1,7 @@
 
 /* Supplement Card */
 .supplement-card {
+  margin: 20px;
   background-color: #fff;
   display: flex;
   align-items: flex-start;
@@ -8,8 +9,8 @@
   border-radius: 12px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
   transition: transform 0.2s ease;
-  width: 100%;
-  max-width: 1000px;
+  width: 200px;
+  
 }
 
 .supplement-card:hover {
@@ -182,3 +183,8 @@
   background-color: #c0392b;
 }
 
+.supplement-actions{
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+}
