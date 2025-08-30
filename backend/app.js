@@ -9,6 +9,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+//api call for uptime robot to keep render backend active
+app.get("/ping", (req, res) => {
+  res.status(200).send("pong");
+});
+
 // JWT Authentication middleware
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
