@@ -228,71 +228,86 @@
     }
 
     onSubmitForm = async (event) => {
-      event.preventDefault()
-      
-      const {name, email,age,phone,gender,packageType} = this.state
-      if (name !== '' && email !== '' && age!=='' && phone!=='' && phone.length===10) {
-        const jwtToken=Cookies.get('jwt_token')
-        const apiUrl = `${process.env.REACT_APP_API_URL}/api/admin/members/`;
-        let packageId;
-        if(packageType==='1-month'){
-          packageId=5;
-        }
-        else if(packageType==='2-months'){
-          packageId=2
-        }
-        else if(packageType==='1-year'){
-          packageId=3
-        }
-        else {
-          packageId=4
-        }
+      event.preventDefault();
+      const { name, email, age, phone, gender, packageType } = this.state;
 
-        const data={
-          name:name,
-          email:email,
-          phone:phone,
-          gender:gender,
-          age:parseInt(age, 10),
-          packageId:packageId,
-          active:true
-        }
+      // Basic validation
+      if (!name || !email || !phone || !age) {
+        if (!name) this.setState({ isNamePresent: false });
+        if (!email) this.setState({ isEmailPresent: false });
+        if (!phone) this.setState({ isPhoneNoPresent: false });
+        if (!age) this.setState({ isAgePresent: false });
+        return;
+      }
 
-        const options={
-          headers:{
-              Authorization:`Bearer ${jwtToken}`,
-              'Content-Type':'Application/json'
-          },
-          method: 'POST',
-          body:  JSON.stringify(data)      
-        }  
-        const response=await fetch(apiUrl,options);
-        if(response.ok===true){
-          this.setState({isFormSubmitSuccess: true})
-        }
-        else{
-          throw new Error('Something went wrong!');
-        }
-        
+      if (!/^\d{10}$/.test(phone)) {
+        alert("Enter a valid 10-digit phone number");
+        return;
       }
-      else{
-          if(age===''){
-              this.setState({isAgePresent:false})
-          }
-          if(email===''){
-              this.setState({isEmailPresent:false})
-          }
-          if(name===''){
-              this.setState({isNamePresent:false})
-          }
-          if(phone===''){
-              this.setState({isPhoneNoPresent:false})
-          }
-          if(phone.length!==10){
-              alert("please enter a valid phone number.")
-          }
+
+      const ageInt = parseInt(age, 10);
+      if (isNaN(ageInt) || ageInt <= 0) {
+        alert("Enter a valid age");
+        return;
       }
+
+      // Map packageType to packageId
+      const jwtToken = Cookies.get("jwt_token");
+      if (!jwtToken) {
+        alert("Login required");
+        return;
+      }
+
+    const packageIdApiUrl = `${process.env.REACT_APP_API_URL}/api/admin/packages/${packageType}`;
+
+    const response = await fetch(packageIdApiUrl, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${jwtToken}`
+      }
+    });
+
+    if (!response.ok) {
+      const text = await response.text(); // read raw HTML error if any
+      console.error("Server responded with error:", text);
+      throw new Error("Failed to fetch package");
     }
+
+    const packageData = await response.json();
+
+
+      const packageId=packageData.id;
+
+      const data = { name, email, phone, gender, age: ageInt, packageId, active: true };
+      const apiUrl = `${process.env.REACT_APP_API_URL}/api/admin/members/`;
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${jwtToken}`
+          },
+          body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          console.error("Backend error:", result);
+          alert(result.error || "Something went wrong!");
+          return;
+        }
+
+        this.setState({ isFormSubmitSuccess: true });
+
+      } catch (err) {
+        console.error("Network error:", err);
+        alert("Network error occurred. Try again!");
+      }
+    };
+
 
     render() {
       const {isFormSubmitSuccess} = this.state
