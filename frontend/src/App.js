@@ -13,6 +13,7 @@ import SupplementStore from "./Components/SupplementStore";
 import ReportExport from "./Components/ReportExport";
 import DietDetails from "./Components/DietDetails";
 import LoginPage from "./Components/LoginPage";
+import ResetPasswordPage from "./Components/ResetPassword";
 import NotFound from "./Components/NotFound";
 import MemberDashboard from "./Components/MemberDashboard";
 import MemberFeePackages from "./Components/MemberFeePackages";
@@ -51,7 +52,7 @@ const App = () => {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage setRole={setRole} />} />
-
+        <Route path="/reset-password" element={<ResetPasswordPage/>}/>
         <Route element={<ProtectedRoute />}>
           <Route
             path="/dashboard"
