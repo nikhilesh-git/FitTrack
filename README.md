@@ -75,6 +75,18 @@ gym-management-system/
 
 ---
 
+## ✅ Login Details
+
+* Admin Login:
+  * Email: gnikhilesh.2005@gmail.com
+  * Password: Nikhilesh@2005
+
+* Member Login:
+  * Email: writernikhilesh@gmail.com
+  * Password: 1111
+
+---
+
 ## 📌 Notes
 
 * Uses `js-cookie` for token management.
