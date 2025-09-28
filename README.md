@@ -9,7 +9,7 @@ A full-stack web application for managing gym operations such as member records,
 
 * **Frontend:** React
 * **Backend:** Node.js with Express
-* **Database:** SQLite
+* **Database:** Supabase
 
 ---
 
@@ -18,8 +18,8 @@ A full-stack web application for managing gym operations such as member records,
 ### 1. **Clone the Repository**
 
 ```bash
-git clone https://github.com/nikhilesh-git/gym-management-system.git
-cd gym-management-system
+git clone https://github.com/nikhilesh-git/FitTrack.git
+cd FitTrack
 ```
 
 ---
