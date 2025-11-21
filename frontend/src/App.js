@@ -20,7 +20,7 @@ import MemberFeePackages from "./Components/MemberFeePackages";
 import MemberSupplementStore from "./Components/MemberSupplementStore";
 import MemberDietDetails from "./Components/MemberDietDetails";
 import ProtectedRoute from "./Components/ProtectedRoute";
-
+import Profile from "./Components/Profile"
 import "./App.css";
 
 const App = () => {
@@ -85,6 +85,10 @@ const App = () => {
           <Route
             path="/reports"
             element={role === "admin" ? <ReportExport /> : <NotFound />}
+          />
+          <Route
+            path="/profile"
+            element={<Profile/>}
           />
           <Route
             path="/diet-details"

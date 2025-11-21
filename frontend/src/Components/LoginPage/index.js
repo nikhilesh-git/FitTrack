@@ -53,9 +53,7 @@ class LoginPage extends Component {
 
       const jwtToken = data.jwt_token;
       Cookies.set('jwt_token', jwtToken, { expires: 30, path: '/' });
-      console.log("JWT token in cookie:", Cookies.get('jwt_token'));
 
-      // 👇 decode the token and set role for App.js immediately
       const decoded = jwtDecode(jwtToken);
       this.props.setRole(decoded.role);
 
@@ -101,6 +99,9 @@ class LoginPage extends Component {
 
           <form className="login-form" onSubmit={this.handleSubmit}>
             <h2>{role === "admin" ? "Admin" : "Member"} Login</h2>
+
+            {/* Added message */}
+            <p className="info-message">Note: Login details are present in readme file</p>
 
             {errorMsg && <p className="error">{errorMsg}</p>}
 

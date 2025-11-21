@@ -264,9 +264,10 @@ app.put("/api/reset-password", async (req, res) => {
   res.json({ message: "Password updated successfully" });
 });
 
-// ------------------- ADMIN PROFILE ------------------- //
-app.get("/api/admin/profile", authenticateToken, async (req, res) => {
-  const { data, error } = await supabase.from('admins').select('*').eq('email', req.email).single();
+// -------------------PROFILE ------------------- //
+app.get("/api/profile", authenticateToken, async (req, res) => {
+  const table= req.role==='admin'?'admins':'members'
+  const { data, error } = await supabase.from(table).select('*').eq('email', req.email).single();
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
